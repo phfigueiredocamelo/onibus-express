@@ -83,7 +83,7 @@ The frontend dev server runs on the default Vite port.
 Run backend tests:
 
 ```bash
-DOTNET_ROLL_FORWARD=Major dotnet test backend/OnibusExpress.sln
+dotnet test backend/OnibusExpress.sln
 ```
 
 Run frontend tests:
