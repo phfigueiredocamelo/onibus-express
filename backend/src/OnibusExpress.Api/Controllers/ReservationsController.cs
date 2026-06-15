@@ -8,6 +8,8 @@ namespace OnibusExpress.Api.Controllers;
 [Route("reservas")]
 public sealed class ReservationsController : ControllerBase
 {
+    private const string GetReservationByCodeRouteName = "GetReservationByCode";
+
     private readonly CreateReservationService _createService;
     private readonly GetReservationByCodeService _getByCodeService;
     private readonly CancelReservationByCodeService _cancelByCodeService;
@@ -33,10 +35,18 @@ public sealed class ReservationsController : ControllerBase
             return this.ToActionResult(result);
         }
 
-        return CreatedAtAction(nameof(GetByCodeAsync), new { codigo = result.Value!.Code }, result.Value);
+        var reservation = result.Value!;
+        var location = Url.RouteUrl(GetReservationByCodeRouteName, new { codigo = reservation.Code });
+
+        if (!string.IsNullOrWhiteSpace(location))
+        {
+            Response.Headers.Location = location;
+        }
+
+        return ApiErrorMapper.CreateJsonContentResult(StatusCodes.Status201Created, reservation);
     }
 
-    [HttpGet("{codigo}")]
+    [HttpGet("{codigo}", Name = GetReservationByCodeRouteName)]
     public async Task<ActionResult<ReservationDto>> GetByCodeAsync(string codigo, CancellationToken cancellationToken)
     {
         var result = await _getByCodeService.GetAsync(codigo, cancellationToken);

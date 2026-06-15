@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Mvc;
 using OnibusExpress.Application.Abstractions;
 
@@ -6,7 +7,10 @@ namespace OnibusExpress.Api;
 
 public static class ApiErrorMapper
 {
-    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
+    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
+    {
+        Converters = { new JsonStringEnumConverter() }
+    };
 
     public static ActionResult<T> ToActionResult<T>(this ControllerBase controller, Result<T> result)
     {
@@ -16,16 +20,18 @@ public static class ApiErrorMapper
         }
 
         var (statusCode, message) = Map(result.ErrorCode);
-        var payload = JsonSerializer.Serialize(
-            new ApiErrorResponse(result.ErrorCode ?? "erro_desconhecido", message),
-            JsonOptions);
-        return new ContentResult
+        return CreateJsonContentResult(
+            statusCode,
+            new ApiErrorResponse(result.ErrorCode ?? "erro_desconhecido", message));
+    }
+
+    public static ContentResult CreateJsonContentResult(int statusCode, object payload) =>
+        new()
         {
             StatusCode = statusCode,
             ContentType = "application/json; charset=utf-8",
-            Content = payload
+            Content = JsonSerializer.Serialize(payload, JsonOptions)
         };
-    }
 
     private static (int StatusCode, string Message) Map(string? errorCode) =>
         errorCode switch
