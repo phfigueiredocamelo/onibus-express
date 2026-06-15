@@ -62,8 +62,8 @@ The API is built for PostgreSQL in the containerized setup, but it also has a lo
 
 ```bash
 cd backend
-/usr/local/share/dotnet/dotnet restore OnibusExpress.sln
-/usr/local/share/dotnet/dotnet run --project src/OnibusExpress.Api/OnibusExpress.Api.csproj
+dotnet restore OnibusExpress.sln
+dotnet run --project src/OnibusExpress.Api/OnibusExpress.Api.csproj
 ```
 
 If you want to run the backend against PostgreSQL locally, set `ConnectionStrings__Default` before starting the API.
@@ -83,7 +83,7 @@ The frontend dev server runs on the default Vite port.
 Run backend tests:
 
 ```bash
-DOTNET_ROLL_FORWARD=Major /usr/local/share/dotnet/dotnet test backend/OnibusExpress.sln
+DOTNET_ROLL_FORWARD=Major dotnet test backend/OnibusExpress.sln
 ```
 
 Run frontend tests:
