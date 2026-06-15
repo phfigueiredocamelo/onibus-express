@@ -26,6 +26,12 @@ public sealed class EfReservationRepository : IReservationRepository
             .Include(reservation => reservation.Passenger)
             .SingleOrDefaultAsync(reservation => reservation.Id == reservationId, cancellationToken);
 
+    public Task<Reservation?> GetReservationByCodeAsync(string code, CancellationToken cancellationToken = default) =>
+        _context.Reservations
+            .Include(reservation => reservation.Trip)
+            .Include(reservation => reservation.Passenger)
+            .SingleOrDefaultAsync(reservation => reservation.Code == code, cancellationToken);
+
     public async Task AddReservationAsync(Reservation reservation, CancellationToken cancellationToken = default)
     {
         await _context.Reservations.AddAsync(reservation, cancellationToken);

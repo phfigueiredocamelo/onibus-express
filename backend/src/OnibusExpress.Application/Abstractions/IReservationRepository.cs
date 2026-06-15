@@ -8,6 +8,8 @@ public interface IReservationRepository
 
     Task<Reservation?> GetReservationByIdAsync(Guid reservationId, CancellationToken cancellationToken = default);
 
+    Task<Reservation?> GetReservationByCodeAsync(string code, CancellationToken cancellationToken = default);
+
     Task AddReservationAsync(Reservation reservation, CancellationToken cancellationToken = default);
 
     Task UpdateReservationAsync(Reservation reservation, CancellationToken cancellationToken = default);
