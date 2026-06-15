@@ -2,6 +2,8 @@
 
 Full-stack MVP for the OniBus Express technical challenge.
 
+![Usage Example](./onibus-express.gif)
+
 ## What It Does
 
 - Search trips by origin, destination, and date.
