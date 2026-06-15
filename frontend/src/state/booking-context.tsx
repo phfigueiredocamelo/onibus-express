@@ -1,4 +1,4 @@
-import { createContext, useContext, useMemo, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react';
 import type { TripSummary } from '../types/api';
 
 export type BookingSelection = {
@@ -28,16 +28,31 @@ type BookingProviderProps = {
 
 export function BookingProvider({ children, initialSelection = emptySelection }: BookingProviderProps) {
   const [selection, setSelectionState] = useState<BookingSelection>(initialSelection);
+  const setTrip = useCallback((trip: TripSummary | null) => {
+    setSelectionState((current) => ({ ...current, trip }));
+  }, []);
+
+  const setSeatNumber = useCallback((seatNumber: number | null) => {
+    setSelectionState((current) => ({ ...current, seatNumber }));
+  }, []);
+
+  const setSelection = useCallback((nextSelection: BookingSelection) => {
+    setSelectionState(nextSelection);
+  }, []);
+
+  const clearSelection = useCallback(() => {
+    setSelectionState(emptySelection);
+  }, []);
 
   const value = useMemo<BookingContextValue>(
     () => ({
       selection,
-      setTrip: (trip) => setSelectionState((current) => ({ ...current, trip })),
-      setSeatNumber: (seatNumber) => setSelectionState((current) => ({ ...current, seatNumber })),
-      setSelection: (nextSelection) => setSelectionState(nextSelection),
-      clearSelection: () => setSelectionState(emptySelection),
+      setTrip,
+      setSeatNumber,
+      setSelection,
+      clearSelection,
     }),
-    [selection],
+    [clearSelection, selection, setSeatNumber, setSelection, setTrip],
   );
 
   return <BookingContext.Provider value={value}>{children}</BookingContext.Provider>;
