@@ -17,7 +17,7 @@ vi.mock('../services/api', async () => {
 describe('ReservationSuccessPage', () => {
   it('loads and displays reservation details from the reservation code', async () => {
     getReservationByCodeMock.mockResolvedValueOnce({
-      code: 'ONB-48291',
+      code: 'RSV-48291',
       tripId: 'trip-porto-alegre-santa-maria-1',
       tripLabel: 'Porto Alegre -> Santa Maria',
       seatNumber: 7,
@@ -32,7 +32,7 @@ describe('ReservationSuccessPage', () => {
 
     renderWithRouter(
       [{ path: '/reservas/sucesso/:codigo', element: <ReservationSuccessPage /> }],
-      { initialEntries: ['/reservas/sucesso/ONB-48291'] },
+      { initialEntries: ['/reservas/sucesso/RSV-48291'] },
     );
 
     expect(await screen.findByText('Porto Alegre -> Santa Maria')).toBeInTheDocument();

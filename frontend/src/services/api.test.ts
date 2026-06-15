@@ -111,7 +111,7 @@ describe('api service', () => {
             tripId: '11111111-1111-1111-1111-111111111111',
             seatNumber: 7,
             status: 'Active',
-            code: 'ONB-48291',
+            code: 'RSV-48291',
             createdAt: '2026-06-15T10:00:00-03:00',
             cancelledAt: null,
             passenger: {
@@ -168,7 +168,7 @@ describe('api service', () => {
       }),
     );
     expect(result).toEqual({
-      code: 'ONB-48291',
+      code: 'RSV-48291',
       tripId: '11111111-1111-1111-1111-111111111111',
       tripLabel: 'Porto Alegre -> Santa Maria',
       seatNumber: 7,
@@ -193,7 +193,7 @@ describe('api service', () => {
       );
     vi.stubGlobal('fetch', fetchMock);
 
-    await expect(getReservationByCode('ONB-00000')).resolves.toBeNull();
-    await expect(cancelReservation('ONB-48291')).rejects.toThrow('O assento informado já está ocupado.');
+    await expect(getReservationByCode('RSV-00000')).resolves.toBeNull();
+    await expect(cancelReservation('RSV-48291')).rejects.toThrow('O assento informado já está ocupado.');
   });
 });
