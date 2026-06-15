@@ -1,12 +1,22 @@
 namespace OnibusExpress.Domain.Entities;
 
-public sealed class Trip
+public class Trip
 {
-    public Guid Id { get; init; }
+    public Guid Id { get; set; }
 
-    public Guid BusRouteId { get; init; }
+    public Guid RouteId { get; set; }
 
-    public DateTime DepartureAt { get; init; }
+    public BusRoute Route { get; set; } = null!;
 
-    public decimal Price { get; init; }
+    public DateTimeOffset DepartureAt { get; set; }
+
+    public decimal BasePrice { get; set; }
+
+    public int TotalSeats { get; set; }
+
+    public List<Reservation> Reservations { get; set; } = [];
+
+    public bool HasDeparted(DateTimeOffset now) => DepartureAt <= now;
+
+    public bool CanCancel(DateTimeOffset now) => DepartureAt > now.AddHours(2);
 }

@@ -1,12 +1,24 @@
+using OnibusExpress.Domain.Enums;
+
 namespace OnibusExpress.Domain.Entities;
 
-public sealed class Reservation
+public class Reservation
 {
-    public Guid Id { get; init; }
+    public Guid Id { get; set; }
 
-    public Guid TripId { get; init; }
+    public Guid TripId { get; set; }
 
-    public Guid PassengerId { get; init; }
+    public Trip Trip { get; set; } = null!;
 
-    public ReservationStatus Status { get; init; }
+    public Passenger Passenger { get; set; } = null!;
+
+    public int SeatNumber { get; set; }
+
+    public ReservationStatus Status { get; set; } = ReservationStatus.Active;
+
+    public string Code { get; set; } = string.Empty;
+
+    public DateTimeOffset CreatedAt { get; set; }
+
+    public DateTimeOffset? CancelledAt { get; set; }
 }
