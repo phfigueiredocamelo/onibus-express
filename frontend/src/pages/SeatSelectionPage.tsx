@@ -15,12 +15,18 @@ export function SeatSelectionPage() {
   const [selectedSeat, setSelectedSeat] = useState<number | null>(selection.seatNumber);
 
   useEffect(() => {
+    let active = true;
+
     if (!id) {
       return;
     }
 
     void (async () => {
       const detail = await getTripById(id);
+      if (!active) {
+        return;
+      }
+
       setTripState(detail);
       if (detail) {
         setTrip({
@@ -34,6 +40,10 @@ export function SeatSelectionPage() {
         });
       }
     })();
+
+    return () => {
+      active = false;
+    };
   }, [id, setTrip]);
 
   const seats = useMemo(() => trip?.seats ?? [], [trip]);
