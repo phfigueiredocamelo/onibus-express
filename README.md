@@ -144,8 +144,4 @@ The API seeds a small demo catalog with Brazilian routes, future trips, and occu
 
 ## Future Improvements
 
-- Replace the frontend stubs with real API requests end to end.
-- Add richer error states and form feedback.
-- Add end-to-end tests.
 - Add a dedicated database migration workflow.
-- Add screenshots or a short demo recording.
