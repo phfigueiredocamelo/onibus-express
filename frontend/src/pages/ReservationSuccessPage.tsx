@@ -25,14 +25,25 @@ export function ReservationSuccessPage() {
         return;
       }
 
-      const result = await getReservationByCode(codigo);
-      if (!active) {
-        return;
-      }
+      try {
+        const result = await getReservationByCode(codigo);
+        if (!active) {
+          return;
+        }
 
-      setReservation(result);
-      setMessage(result ? null : 'Reserva não encontrada.');
-      setIsLoading(false);
+        setReservation(result);
+        setMessage(result ? null : 'Reserva não encontrada.');
+      } catch (caughtError) {
+        if (!active) {
+          return;
+        }
+
+        setMessage(caughtError instanceof Error ? caughtError.message : 'Nao foi possivel carregar a reserva.');
+      } finally {
+        if (active) {
+          setIsLoading(false);
+        }
+      }
     }
 
     void loadReservation();

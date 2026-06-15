@@ -6,146 +6,202 @@ import type {
   TripDetail,
   TripSummary,
 } from '../types/api';
-import { getDateInputValue } from '../lib/date';
 
-const delay = async (ms = 120) => {
-  await new Promise((resolve) => setTimeout(resolve, ms));
+const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(/\/+$/, '') ?? 'http://localhost:8080';
+
+type BackendRoute = {
+  id: string;
+  origin: string;
+  destination: string;
+  estimatedDuration: string;
 };
 
-const today = getDateInputValue();
+type BackendTripSummary = {
+  id: string;
+  route: BackendRoute;
+  departureAt: string;
+  basePrice: number;
+  totalSeats: number;
+  availableSeats: number;
+};
 
-const demoTrips: TripDetail[] = [
-  {
-    id: 'trip-porto-alegre-santa-maria-1',
-    origin: 'Porto Alegre',
-    destination: 'Santa Maria',
-    departureAt: `${today}T07:30:00-03:00`,
-    arrivalAt: `${today}T12:05:00-03:00`,
-    price: 142.9,
-    availableSeats: 8,
-    vehicleName: 'Executivo 42 lugares',
-    seats: Array.from({ length: 42 }, (_, index) => ({
-      number: index + 1,
-      occupied: [3, 4, 11, 12, 17, 23, 24, 33, 34, 41].includes(index + 1),
-    })),
-  },
-  {
-    id: 'trip-florianopolis-curitiba-1',
-    origin: 'Florianópolis',
-    destination: 'Curitiba',
-    departureAt: `${getDateInputValue(1)}T09:10:00-03:00`,
-    arrivalAt: `${getDateInputValue(1)}T14:20:00-03:00`,
-    price: 186.4,
-    availableSeats: 12,
-    vehicleName: 'Semi-leito 46 lugares',
-    seats: Array.from({ length: 46 }, (_, index) => ({
-      number: index + 1,
-      occupied: [2, 5, 6, 15, 16, 27, 28, 35, 36, 44, 45].includes(index + 1),
-    })),
-  },
-  {
-    id: 'trip-sao-paulo-rio-1',
-    origin: 'São Paulo',
-    destination: 'Rio de Janeiro',
-    departureAt: `${getDateInputValue(2)}T08:45:00-03:00`,
-    arrivalAt: `${getDateInputValue(2)}T14:30:00-03:00`,
-    price: 154.0,
-    availableSeats: 6,
-    vehicleName: 'Leito 40 lugares',
-    seats: Array.from({ length: 40 }, (_, index) => ({
-      number: index + 1,
-      occupied: [1, 2, 10, 11, 18, 19, 25, 30, 31, 40].includes(index + 1),
-    })),
-  },
-];
+type BackendTripDetail = BackendTripSummary & {
+  seats: Array<{
+    seatNumber: number;
+    status: 'Available' | 'Occupied';
+  }>;
+};
 
-const reservationStore = new Map<string, ReservationSummary>([
-  [
-    'ONB-48291',
-    {
-      code: 'ONB-48291',
-      tripId: 'trip-porto-alegre-santa-maria-1',
-      tripLabel: 'Porto Alegre -> Santa Maria',
-      seatNumber: 7,
-      passenger: {
-        fullName: 'Marina Alves',
-        cpf: '529.982.247-25',
-        email: 'marina.alves@example.com',
-      },
-      status: 'active',
-      departureAt: `${today}T07:30:00-03:00`,
-    },
-  ],
-]);
+type BackendReservation = {
+  id: string;
+  tripId: string;
+  seatNumber: number;
+  status: 'Active' | 'Cancelled';
+  code: string;
+  createdAt: string;
+  cancelledAt: string | null;
+  passenger: {
+    id: string;
+    fullName: string;
+    cpf: string;
+    email: string;
+    birthDate: string | null;
+  };
+};
 
-const tripById = new Map(demoTrips.map((trip) => [trip.id, trip]));
+type BackendApiError = {
+  code: string;
+  message: string;
+};
 
-const normalize = (value: string) => value.trim().toLocaleLowerCase('pt-BR');
+function addDuration(departureAt: string, estimatedDuration: string) {
+  const [hours, minutes, seconds] = estimatedDuration.split(':').map(Number);
+  const match = departureAt.match(
+    /^(\d{4}-\d{2}-\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.\d+)?([+-]\d{2}:\d{2}|Z)$/,
+  );
 
-export async function searchTrips(query: SearchTripsQuery): Promise<TripSummary[]> {
-  await delay();
-
-  const origin = normalize(query.origin);
-  const destination = normalize(query.destination);
-  const date = query.date.trim();
-
-  return demoTrips
-    .filter((trip) => {
-      const matchesOrigin = !origin || normalize(trip.origin).includes(origin);
-      const matchesDestination = !destination || normalize(trip.destination).includes(destination);
-      const matchesDate = !date || trip.departureAt.slice(0, 10) === date;
-
-      return matchesOrigin && matchesDestination && matchesDate;
-    })
-    .map(({ seats: _seats, vehicleName: _vehicleName, ...summary }) => summary);
-}
-
-export async function getTripById(id: string): Promise<TripDetail | null> {
-  await delay();
-  return tripById.get(id) ?? null;
-}
-
-export async function createReservation(input: ReservationCreateInput): Promise<ReservationSummary> {
-  await delay();
-
-  const trip = tripById.get(input.tripId);
-  if (!trip) {
-    throw new Error('Trip not found.');
+  if (!match) {
+    return departureAt;
   }
 
-  const code = `ONB-${Math.floor(10000 + Math.random() * 90000)}`;
-  const reservation: ReservationSummary = {
-    code,
-    tripId: trip.id,
-    tripLabel: `${trip.origin} -> ${trip.destination}`,
-    seatNumber: input.seatNumber,
-    passenger: {
-      fullName: input.fullName,
-      cpf: input.cpf,
-      email: input.email,
-    },
-    status: 'active',
+  const [, datePart, hourPart, minutePart, secondPart, offsetPart] = match;
+  const [year, month, day] = datePart.split('-').map(Number);
+  const localDate = new Date(Date.UTC(year, month - 1, day, Number(hourPart), Number(minutePart), Number(secondPart)));
+  localDate.setUTCSeconds(localDate.getUTCSeconds() + hours * 3600 + minutes * 60 + seconds);
+
+  const paddedMonth = String(localDate.getUTCMonth() + 1).padStart(2, '0');
+  const paddedDay = String(localDate.getUTCDate()).padStart(2, '0');
+  const paddedHours = String(localDate.getUTCHours()).padStart(2, '0');
+  const paddedMinutes = String(localDate.getUTCMinutes()).padStart(2, '0');
+  const paddedSeconds = String(localDate.getUTCSeconds()).padStart(2, '0');
+
+  return `${localDate.getUTCFullYear()}-${paddedMonth}-${paddedDay}T${paddedHours}:${paddedMinutes}:${paddedSeconds}${offsetPart}`;
+}
+
+function mapTripSummary(trip: BackendTripSummary): TripSummary {
+  return {
+    id: trip.id,
+    origin: trip.route.origin,
+    destination: trip.route.destination,
     departureAt: trip.departureAt,
+    arrivalAt: addDuration(trip.departureAt, trip.route.estimatedDuration),
+    price: trip.basePrice,
+    availableSeats: trip.availableSeats,
   };
-
-  reservationStore.set(code, reservation);
-  return reservation;
 }
 
-export async function getReservationByCode(code: string): Promise<ReservationLookupResult> {
-  await delay();
-  return reservationStore.get(code.trim().toUpperCase()) ?? null;
+function mapTripDetail(trip: BackendTripDetail): TripDetail {
+  return {
+    ...mapTripSummary(trip),
+    vehicleName: `${trip.totalSeats} lugares`,
+    seats: trip.seats.map((seat) => ({
+      number: seat.seatNumber,
+      occupied: seat.status === 'Occupied',
+    })),
+  };
 }
 
-export async function cancelReservation(code: string): Promise<ReservationLookupResult> {
-  await delay();
+async function request<T>(path: string, init?: RequestInit): Promise<T | null> {
+  const response = await fetch(`${apiBaseUrl}${path}`, {
+    ...init,
+    headers: {
+      Accept: 'application/json',
+      ...(init?.body ? { 'Content-Type': 'application/json' } : {}),
+      ...init?.headers,
+    },
+  });
 
-  const reservation = reservationStore.get(code.trim().toUpperCase());
-  if (!reservation) {
+  if (response.status === 404) {
     return null;
   }
 
-  const updated = { ...reservation, status: 'cancelled' as const };
-  reservationStore.set(updated.code, updated);
-  return updated;
+  if (!response.ok) {
+    let message = 'Nao foi possivel processar a solicitacao.';
+
+    try {
+      const error = (await response.json()) as BackendApiError;
+      if (error.message) {
+        message = error.message;
+      }
+    } catch {
+      // Ignore non-JSON error payloads and fall back to the generic message.
+    }
+
+    throw new Error(message);
+  }
+
+  return (await response.json()) as T;
+}
+
+async function mapReservation(reservation: BackendReservation): Promise<ReservationSummary> {
+  const trip = await getTripById(reservation.tripId);
+
+  return {
+    code: reservation.code,
+    tripId: reservation.tripId,
+    tripLabel: trip ? `${trip.origin} -> ${trip.destination}` : `Viagem ${reservation.tripId.slice(0, 8)}`,
+    seatNumber: reservation.seatNumber,
+    passenger: {
+      fullName: reservation.passenger.fullName,
+      cpf: reservation.passenger.cpf,
+      email: reservation.passenger.email,
+    },
+    status: reservation.status === 'Cancelled' ? 'cancelled' : 'active',
+    departureAt: trip?.departureAt ?? reservation.createdAt,
+  };
+}
+
+export async function searchTrips(query: SearchTripsQuery): Promise<TripSummary[]> {
+  const params = new URLSearchParams();
+
+  if (query.origin.trim()) {
+    params.set('origem', query.origin.trim());
+  }
+
+  if (query.destination.trim()) {
+    params.set('destino', query.destination.trim());
+  }
+
+  if (query.date.trim()) {
+    params.set('data', query.date.trim());
+  }
+
+  const path = params.size > 0 ? `/viagens?${params.toString()}` : '/viagens';
+  const trips = await request<BackendTripSummary[]>(path, { method: 'GET' });
+  return (trips ?? []).map(mapTripSummary);
+}
+
+export async function getTripById(id: string): Promise<TripDetail | null> {
+  const trip = await request<BackendTripDetail>(`/viagens/${id}`, { method: 'GET' });
+  return trip ? mapTripDetail(trip) : null;
+}
+
+export async function createReservation(input: ReservationCreateInput): Promise<ReservationSummary> {
+  const reservation = await request<BackendReservation>('/reservas', {
+    method: 'POST',
+    body: JSON.stringify({
+      tripId: input.tripId,
+      seatNumber: input.seatNumber,
+      passengerName: input.fullName,
+      passengerCpf: input.cpf,
+      passengerEmail: input.email,
+      passengerBirthDate: null,
+    }),
+  });
+
+  if (!reservation) {
+    throw new Error('Nao foi possivel criar a reserva.');
+  }
+
+  return mapReservation(reservation);
+}
+
+export async function getReservationByCode(code: string): Promise<ReservationLookupResult> {
+  const reservation = await request<BackendReservation>(`/reservas/${code.trim().toUpperCase()}`, { method: 'GET' });
+  return reservation ? mapReservation(reservation) : null;
+}
+
+export async function cancelReservation(code: string): Promise<ReservationLookupResult> {
+  const reservation = await request<BackendReservation>(`/reservas/${code.trim().toUpperCase()}`, { method: 'DELETE' });
+  return reservation ? mapReservation(reservation) : null;
 }

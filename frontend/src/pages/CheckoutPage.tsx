@@ -61,6 +61,8 @@ export function CheckoutPage() {
       });
 
       navigate(appRoutes.reservationSuccess(reservation.code));
+    } catch (caughtError) {
+      setError(caughtError instanceof Error ? caughtError.message : 'Nao foi possivel criar a reserva.');
     } finally {
       setIsSaving(false);
     }
@@ -127,7 +129,7 @@ export function CheckoutPage() {
         )}
 
         <Alert variant="info" title="Validação local">
-          O formulário rejeita campos vazios e CPF inválido antes de chamar a API stub.
+          O formulário rejeita campos vazios e CPF inválido antes de enviar a reserva para a API.
         </Alert>
       </aside>
     </div>

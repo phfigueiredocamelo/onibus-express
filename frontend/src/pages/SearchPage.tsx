@@ -18,6 +18,7 @@ export function SearchPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [results, setResults] = useState<TripSummary[]>([]);
   const [hasSearched, setHasSearched] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const resultCount = useMemo(() => results.length, [results]);
 
@@ -25,10 +26,14 @@ export function SearchPage() {
     event.preventDefault();
     setIsLoading(true);
     setHasSearched(true);
+    setError(null);
 
     try {
       const trips = await searchTrips({ origin, destination, date });
       setResults(trips);
+    } catch (caughtError) {
+      setResults([]);
+      setError(caughtError instanceof Error ? caughtError.message : 'Nao foi possivel carregar as viagens.');
     } finally {
       setIsLoading(false);
     }
@@ -72,6 +77,12 @@ export function SearchPage() {
         {isLoading ? (
           <Alert variant="info" title="Carregando resultados">
             Estamos consultando as saídas disponíveis.
+          </Alert>
+        ) : null}
+
+        {error ? (
+          <Alert variant="error" title="Falha ao consultar viagens">
+            {error}
           </Alert>
         ) : null}
 

@@ -13,6 +13,7 @@ export function SeatSelectionPage() {
   const { setTrip, setSeatNumber, selection } = useBooking();
   const [trip, setTripState] = useState<TripDetail | null>(null);
   const [selectedSeat, setSelectedSeat] = useState<number | null>(selection.seatNumber);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -22,22 +23,31 @@ export function SeatSelectionPage() {
     }
 
     void (async () => {
-      const detail = await getTripById(id);
-      if (!active) {
-        return;
-      }
+      try {
+        setError(null);
+        const detail = await getTripById(id);
+        if (!active) {
+          return;
+        }
 
-      setTripState(detail);
-      if (detail) {
-        setTrip({
-          id: detail.id,
-          origin: detail.origin,
-          destination: detail.destination,
-          departureAt: detail.departureAt,
-          arrivalAt: detail.arrivalAt,
-          price: detail.price,
-          availableSeats: detail.availableSeats,
-        });
+        setTripState(detail);
+        if (detail) {
+          setTrip({
+            id: detail.id,
+            origin: detail.origin,
+            destination: detail.destination,
+            departureAt: detail.departureAt,
+            arrivalAt: detail.arrivalAt,
+            price: detail.price,
+            availableSeats: detail.availableSeats,
+          });
+        }
+      } catch (caughtError) {
+        if (!active) {
+          return;
+        }
+
+        setError(caughtError instanceof Error ? caughtError.message : 'Nao foi possivel carregar a viagem.');
       }
     })();
 
@@ -62,6 +72,10 @@ export function SeatSelectionPage() {
   }
 
   if (!trip) {
+    if (error) {
+      return <Alert variant="error">{error}</Alert>;
+    }
+
     return <Alert variant="info">Carregando mapa de assentos...</Alert>;
   }
 

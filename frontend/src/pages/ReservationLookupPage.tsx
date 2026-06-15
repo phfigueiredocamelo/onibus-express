@@ -22,6 +22,9 @@ export function ReservationLookupPage() {
       if (!result) {
         setMessage('Reserva não encontrada.');
       }
+    } catch (caughtError) {
+      setReservation(null);
+      setMessage(caughtError instanceof Error ? caughtError.message : 'Nao foi possivel consultar a reserva.');
     } finally {
       setIsLoading(false);
     }
@@ -32,9 +35,13 @@ export function ReservationLookupPage() {
       return;
     }
 
-    const cancelled = await cancelReservation(reservation.code);
-    setReservation(cancelled);
-    setMessage('Reserva cancelada com sucesso.');
+    try {
+      const cancelled = await cancelReservation(reservation.code);
+      setReservation(cancelled);
+      setMessage('Reserva cancelada com sucesso.');
+    } catch (caughtError) {
+      setMessage(caughtError instanceof Error ? caughtError.message : 'Nao foi possivel cancelar a reserva.');
+    }
   };
 
   return (
