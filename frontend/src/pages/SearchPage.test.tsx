@@ -1,6 +1,6 @@
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { renderWithRouter } from '../test/render';
 import { SearchPage } from './SearchPage';
 
@@ -16,6 +16,31 @@ vi.mock('../services/api', async () => {
 });
 
 describe('SearchPage', () => {
+  beforeEach(() => {
+    searchTripsMock.mockReset();
+  });
+
+  it('shows inline validation before searching', async () => {
+    renderWithRouter(
+      [
+        { path: '/buscar', element: <SearchPage /> },
+        { path: '*', element: <SearchPage /> },
+      ],
+      { initialEntries: ['/buscar'] },
+    );
+
+    const user = userEvent.setup();
+
+    await user.clear(screen.getByLabelText('Data'));
+    await user.click(screen.getByRole('button', { name: 'Buscar viagens' }));
+
+    expect(await screen.findByText('Informe a cidade de origem.')).toBeInTheDocument();
+    expect(screen.getByText('Informe a cidade de destino.')).toBeInTheDocument();
+    expect(screen.getByText('Escolha uma data para a viagem.')).toBeInTheDocument();
+    expect(searchTripsMock).not.toHaveBeenCalled();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
   it('fills fields, searches, and shows the results', async () => {
     searchTripsMock.mockResolvedValueOnce([
       {
@@ -50,5 +75,28 @@ describe('SearchPage', () => {
 
     expect(await screen.findByText('Porto Alegre para Santa Maria')).toBeInTheDocument();
     expect(screen.getByText('8 assentos livres')).toBeInTheDocument();
+  });
+
+  it('keeps API failures in a top-level alert without field validation copy', async () => {
+    searchTripsMock.mockRejectedValueOnce(new Error('Servidor indisponível.'));
+
+    renderWithRouter(
+      [
+        { path: '/buscar', element: <SearchPage /> },
+        { path: '*', element: <SearchPage /> },
+      ],
+      { initialEntries: ['/buscar'] },
+    );
+
+    const user = userEvent.setup();
+
+    await user.type(screen.getByLabelText('Origem'), 'Porto Alegre');
+    await user.type(screen.getByLabelText('Destino'), 'Santa Maria');
+    await user.clear(screen.getByLabelText('Data'));
+    await user.type(screen.getByLabelText('Data'), '2026-06-15');
+    await user.click(screen.getByRole('button', { name: 'Buscar viagens' }));
+
+    expect(await screen.findByText('Servidor indisponível.')).toBeInTheDocument();
+    expect(screen.queryByText('Informe a cidade de origem.')).not.toBeInTheDocument();
   });
 });

@@ -8,6 +8,16 @@ import { appRoutes } from '../services/routes';
 import { createReservation } from '../services/api';
 import { useBooking } from '../state/booking-context';
 
+type CheckoutFieldErrors = {
+  fullName?: string;
+  cpf?: string;
+  email?: string;
+};
+
+function isValidEmail(value: string) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+}
+
 export function CheckoutPage() {
   const navigate = useNavigate();
   const { selection } = useBooking();
@@ -15,6 +25,7 @@ export function CheckoutPage() {
   const [cpf, setCpf] = useState('');
   const [email, setEmail] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<CheckoutFieldErrors>({});
   const [isSaving, setIsSaving] = useState(false);
 
   const trip = selection.trip;
@@ -31,6 +42,28 @@ export function CheckoutPage() {
     return null;
   }
 
+  const validateForm = () => {
+    const nextErrors: CheckoutFieldErrors = {};
+
+    if (!fullName.trim()) {
+      nextErrors.fullName = 'Informe o nome completo do passageiro.';
+    }
+
+    if (!cpf.trim()) {
+      nextErrors.cpf = 'Informe um CPF válido para continuar.';
+    } else if (!isValidCpf(cpf)) {
+      nextErrors.cpf = 'Confira o CPF informado.';
+    }
+
+    if (!email.trim()) {
+      nextErrors.email = 'Informe um e-mail para receber a confirmação.';
+    } else if (!isValidEmail(email.trim())) {
+      nextErrors.email = 'Digite um e-mail válido.';
+    }
+
+    return nextErrors;
+  };
+
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError(null);
@@ -40,13 +73,10 @@ export function CheckoutPage() {
       return;
     }
 
-    if (!fullName.trim() || !cpf.trim() || !email.trim()) {
-      setError('Preencha nome, CPF e e-mail.');
-      return;
-    }
+    const nextErrors = validateForm();
+    setFieldErrors(nextErrors);
 
-    if (!isValidCpf(cpf)) {
-      setError('Informe um CPF válido.');
+    if (Object.keys(nextErrors).length > 0) {
       return;
     }
 
@@ -83,23 +113,55 @@ export function CheckoutPage() {
           </Alert>
         ) : null}
 
-        <form className="mt-6 grid gap-4" onSubmit={handleSubmit}>
-          <label className="space-y-1.5">
+        <form className="mt-6 grid gap-4" onSubmit={handleSubmit} noValidate>
+          <label className="space-y-1.5" htmlFor="checkout-full-name">
             <span className="text-sm font-medium text-slate-700">Nome completo</span>
-            <Input value={fullName} onChange={(event) => setFullName(event.target.value)} placeholder="Nome da pessoa" />
+            <Input
+              id="checkout-full-name"
+              value={fullName}
+              onChange={(event) => setFullName(event.target.value)}
+              placeholder="Nome da pessoa"
+              invalid={Boolean(fieldErrors.fullName)}
+              aria-describedby={fieldErrors.fullName ? 'checkout-full-name-error' : undefined}
+            />
+            {fieldErrors.fullName ? (
+              <p id="checkout-full-name-error" className="text-sm text-rose-700">
+                {fieldErrors.fullName}
+              </p>
+            ) : null}
           </label>
-          <label className="space-y-1.5">
+          <label className="space-y-1.5" htmlFor="checkout-cpf">
             <span className="text-sm font-medium text-slate-700">CPF</span>
-            <Input value={cpf} onChange={(event) => setCpf(event.target.value)} placeholder="529.982.247-25" />
+            <Input
+              id="checkout-cpf"
+              value={cpf}
+              onChange={(event) => setCpf(event.target.value)}
+              placeholder="529.982.247-25"
+              invalid={Boolean(fieldErrors.cpf)}
+              aria-describedby={fieldErrors.cpf ? 'checkout-cpf-error' : undefined}
+            />
+            {fieldErrors.cpf ? (
+              <p id="checkout-cpf-error" className="text-sm text-rose-700">
+                {fieldErrors.cpf}
+              </p>
+            ) : null}
           </label>
-          <label className="space-y-1.5">
+          <label className="space-y-1.5" htmlFor="checkout-email">
             <span className="text-sm font-medium text-slate-700">E-mail</span>
             <Input
+              id="checkout-email"
               type="email"
               value={email}
               onChange={(event) => setEmail(event.target.value)}
               placeholder="nome@exemplo.com"
+              invalid={Boolean(fieldErrors.email)}
+              aria-describedby={fieldErrors.email ? 'checkout-email-error' : undefined}
             />
+            {fieldErrors.email ? (
+              <p id="checkout-email-error" className="text-sm text-rose-700">
+                {fieldErrors.email}
+              </p>
+            ) : null}
           </label>
 
           <Button type="submit" disabled={isSaving || !canContinue}>

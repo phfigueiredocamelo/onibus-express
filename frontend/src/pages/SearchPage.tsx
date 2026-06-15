@@ -10,6 +10,12 @@ import type { TripSummary } from '../types/api';
 
 const defaultDate = getDateInputValue();
 
+type SearchFormErrors = {
+  origin?: string;
+  destination?: string;
+  date?: string;
+};
+
 export function SearchPage() {
   const navigate = useNavigate();
   const [origin, setOrigin] = useState('');
@@ -19,18 +25,47 @@ export function SearchPage() {
   const [results, setResults] = useState<TripSummary[]>([]);
   const [hasSearched, setHasSearched] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<SearchFormErrors>({});
 
   const resultCount = useMemo(() => results.length, [results]);
 
+  const validateForm = () => {
+    const nextErrors: SearchFormErrors = {};
+
+    if (!origin.trim()) {
+      nextErrors.origin = 'Informe a cidade de origem.';
+    }
+
+    if (!destination.trim()) {
+      nextErrors.destination = 'Informe a cidade de destino.';
+    }
+
+    if (!date.trim()) {
+      nextErrors.date = 'Escolha uma data para a viagem.';
+    }
+
+    return nextErrors;
+  };
+
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+
+    const nextErrors = validateForm();
+    setFieldErrors(nextErrors);
+    setError(null);
+
+    if (Object.keys(nextErrors).length > 0) {
+      setResults([]);
+      setHasSearched(false);
+      return;
+    }
+
     setIsLoading(true);
     setHasSearched(true);
-    setError(null);
 
     try {
       const trips = await searchTrips({ origin, destination, date });
-      setResults(trips);
+      setResults(trips ?? []);
     } catch (caughtError) {
       setResults([]);
       setError(caughtError instanceof Error ? caughtError.message : 'Nao foi possivel carregar as viagens.');
@@ -51,21 +86,53 @@ export function SearchPage() {
         </div>
 
         <form className="mt-6 grid gap-4 md:grid-cols-[1.2fr_1.2fr_0.8fr_auto] md:items-end" onSubmit={handleSubmit}>
-          <label className="space-y-1.5">
+          <label className="space-y-1.5" htmlFor="search-origin">
             <span className="text-sm font-medium text-slate-700">Origem</span>
-            <Input value={origin} onChange={(event) => setOrigin(event.target.value)} placeholder="Porto Alegre" />
+            <Input
+              id="search-origin"
+              value={origin}
+              onChange={(event) => setOrigin(event.target.value)}
+              placeholder="Porto Alegre"
+              invalid={Boolean(fieldErrors.origin)}
+              aria-describedby={fieldErrors.origin ? 'search-origin-error' : undefined}
+            />
+            {fieldErrors.origin ? (
+              <p id="search-origin-error" className="text-sm text-rose-700">
+                {fieldErrors.origin}
+              </p>
+            ) : null}
           </label>
-          <label className="space-y-1.5">
+          <label className="space-y-1.5" htmlFor="search-destination">
             <span className="text-sm font-medium text-slate-700">Destino</span>
             <Input
+              id="search-destination"
               value={destination}
               onChange={(event) => setDestination(event.target.value)}
               placeholder="Santa Maria"
+              invalid={Boolean(fieldErrors.destination)}
+              aria-describedby={fieldErrors.destination ? 'search-destination-error' : undefined}
             />
+            {fieldErrors.destination ? (
+              <p id="search-destination-error" className="text-sm text-rose-700">
+                {fieldErrors.destination}
+              </p>
+            ) : null}
           </label>
-          <label className="space-y-1.5">
+          <label className="space-y-1.5" htmlFor="search-date">
             <span className="text-sm font-medium text-slate-700">Data</span>
-            <Input type="date" value={date} onChange={(event) => setDate(event.target.value)} />
+            <Input
+              id="search-date"
+              type="date"
+              value={date}
+              onChange={(event) => setDate(event.target.value)}
+              invalid={Boolean(fieldErrors.date)}
+              aria-describedby={fieldErrors.date ? 'search-date-error' : undefined}
+            />
+            {fieldErrors.date ? (
+              <p id="search-date-error" className="text-sm text-rose-700">
+                {fieldErrors.date}
+              </p>
+            ) : null}
           </label>
           <Button type="submit" disabled={isLoading}>
             {isLoading ? 'Buscando...' : 'Buscar viagens'}
@@ -88,7 +155,7 @@ export function SearchPage() {
 
         {!isLoading && hasSearched && resultCount === 0 ? (
           <Alert variant="warning" title="Nenhuma viagem encontrada">
-            Tente uma rota diferente ou remova filtros para ver as opções disponíveis.
+            Tente uma rota diferente.
           </Alert>
         ) : null}
 

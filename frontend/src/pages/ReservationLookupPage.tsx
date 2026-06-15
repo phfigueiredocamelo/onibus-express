@@ -5,19 +5,38 @@ import { Alert } from '../components/ui/Alert';
 import { cancelReservation, getReservationByCode } from '../services/api';
 import type { ReservationLookupResult } from '../types/api';
 
+const reservationCodePattern = /^RSV-[0-9A-F]{10}$/i;
+
 export function ReservationLookupPage() {
-  const [code, setCode] = useState('ONB-48291');
+  const [code, setCode] = useState('RSV-22A5DED4A0');
   const [reservation, setReservation] = useState<ReservationLookupResult>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [codeError, setCodeError] = useState<string | null>(null);
 
   const handleLookup = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setMessage(null);
+
+    const normalizedCode = code.trim().toUpperCase();
+
+    if (!normalizedCode) {
+      setCodeError('Informe o código da reserva.');
+      setReservation(null);
+      return;
+    }
+
+    if (!reservationCodePattern.test(normalizedCode)) {
+      setCodeError('Use o formato RSV-22A5DED4A0.');
+      setReservation(null);
+      return;
+    }
+
+    setCodeError(null);
     setIsLoading(true);
 
     try {
-      const result = await getReservationByCode(code);
+      const result = await getReservationByCode(normalizedCode);
       setReservation(result);
       if (!result) {
         setMessage('Reserva não encontrada.');
@@ -54,9 +73,21 @@ export function ReservationLookupPage() {
         </div>
 
         <form className="mt-6 grid gap-4" onSubmit={handleLookup}>
-          <label className="space-y-1.5">
+          <label className="space-y-1.5" htmlFor="reservation-code">
             <span className="text-sm font-medium text-slate-700">Código da reserva</span>
-            <Input value={code} onChange={(event) => setCode(event.target.value)} placeholder="ONB-48291" />
+            <Input
+              id="reservation-code"
+              value={code}
+              onChange={(event) => setCode(event.target.value)}
+              placeholder="RSV-22A5DED4A0"
+              invalid={Boolean(codeError)}
+              aria-describedby={codeError ? 'reservation-code-error' : undefined}
+            />
+            {codeError ? (
+              <p id="reservation-code-error" className="text-sm text-rose-700">
+                {codeError}
+              </p>
+            ) : null}
           </label>
           <Button type="submit" disabled={isLoading}>
             {isLoading ? 'Consultando...' : 'Consultar'}

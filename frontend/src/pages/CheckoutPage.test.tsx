@@ -7,6 +7,7 @@ import { appRoutes } from '../services/routes';
 import type { TripSummary } from '../types/api';
 
 const navigateMock = vi.hoisted(() => vi.fn());
+const createReservationMock = vi.hoisted(() => vi.fn());
 
 vi.mock('react-router-dom', async () => {
   const actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom');
@@ -14,6 +15,15 @@ vi.mock('react-router-dom', async () => {
   return {
     ...actual,
     useNavigate: () => navigateMock,
+  };
+});
+
+vi.mock('../services/api', async () => {
+  const actual = await vi.importActual<typeof import('../services/api')>('../services/api');
+
+  return {
+    ...actual,
+    createReservation: createReservationMock,
   };
 });
 
@@ -30,6 +40,7 @@ describe('CheckoutPage', () => {
 
   beforeEach(() => {
     navigateMock.mockClear();
+    createReservationMock.mockReset();
   });
 
   it('redirects to search when no trip is selected', async () => {
@@ -54,13 +65,42 @@ describe('CheckoutPage', () => {
     const user = userEvent.setup();
 
     await user.click(screen.getByRole('button', { name: 'Confirmar reserva' }));
-    expect(await screen.findByText('Preencha nome, CPF e e-mail.')).toBeInTheDocument();
+    expect(await screen.findByText('Informe o nome completo do passageiro.')).toBeInTheDocument();
+    expect(screen.getByText('Informe um CPF válido para continuar.')).toBeInTheDocument();
+    expect(screen.getByText('Informe um e-mail para receber a confirmação.')).toBeInTheDocument();
+    expect(createReservationMock).not.toHaveBeenCalled();
 
-    await user.type(screen.getByLabelText('Nome completo'), 'Marina Alves');
-    await user.type(screen.getByLabelText('CPF'), '111.111.111-11');
-    await user.type(screen.getByLabelText('E-mail'), 'marina@example.com');
+    await user.type(screen.getByPlaceholderText('Nome da pessoa'), 'Marina Alves');
+    await user.type(screen.getByPlaceholderText('529.982.247-25'), '111.111.111-11');
+    await user.type(screen.getByPlaceholderText('nome@exemplo.com'), 'marina@example.com');
     await user.click(screen.getByRole('button', { name: 'Confirmar reserva' }));
 
-    expect(await screen.findByText('Informe um CPF válido.')).toBeInTheDocument();
+    expect(await screen.findByText('Confira o CPF informado.')).toBeInTheDocument();
+  });
+
+  it('shows field feedback for invalid email and keeps backend errors in a summary alert', async () => {
+    createReservationMock.mockRejectedValueOnce(new Error('O assento informado já está ocupado.'));
+
+    render(
+      <BookingProvider initialSelection={{ trip, seatNumber: 7 }}>
+        <CheckoutPage />
+      </BookingProvider>,
+    );
+
+    const user = userEvent.setup();
+
+    await user.type(screen.getByPlaceholderText('Nome da pessoa'), 'Marina Alves');
+    await user.type(screen.getByPlaceholderText('529.982.247-25'), '529.982.247-25');
+    await user.type(screen.getByPlaceholderText('nome@exemplo.com'), 'marina');
+    await user.click(screen.getByRole('button', { name: 'Confirmar reserva' }));
+
+    expect(await screen.findByText('Digite um e-mail válido.')).toBeInTheDocument();
+    expect(createReservationMock).not.toHaveBeenCalled();
+
+    await user.clear(screen.getByPlaceholderText('nome@exemplo.com'));
+    await user.type(screen.getByPlaceholderText('nome@exemplo.com'), 'marina@example.com');
+    await user.click(screen.getByRole('button', { name: 'Confirmar reserva' }));
+
+    expect(await screen.findByText('O assento informado já está ocupado.')).toBeInTheDocument();
   });
 });
