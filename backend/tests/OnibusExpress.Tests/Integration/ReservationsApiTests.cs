@@ -5,9 +5,13 @@ using System.Text.Json.Serialization;
 using FluentAssertions;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
-using Microsoft.Extensions.Configuration;
+using Microsoft.Data.Sqlite;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using OnibusExpress.Api;
 using OnibusExpress.Application.Reservations;
+using OnibusExpress.Infrastructure;
+using OnibusExpress.Infrastructure.Data;
 using Xunit;
 
 namespace OnibusExpress.Tests.Integration;
@@ -22,94 +26,104 @@ public sealed class ReservationsApiTests
     [Fact]
     public async Task Post_reservas_should_return_created_with_location_for_lookup_by_code()
     {
-        var databasePath = Path.Combine(Path.GetTempPath(), $"onibus-express-{Guid.NewGuid():N}.db");
-        var seatNumber = Math.Abs(Guid.NewGuid().GetHashCode());
+        await using var factory = new TestApiFactory();
+        using var client = factory.CreateClient();
 
-        try
-        {
-            await using var factory = new TestApiFactory(databasePath);
-            using var client = factory.CreateClient();
+        var response = await client.PostAsJsonAsync("/reservas", new CreateReservationRequest(
+            Guid.Parse("22222222-2222-2222-2222-222222222222"),
+            7,
+            "Maria Silva",
+            "12345678909",
+            "maria@example.com",
+            null));
 
-            var response = await client.PostAsJsonAsync("/reservas", new CreateReservationRequest(
-                Guid.Parse("22222222-2222-2222-2222-222222222222"),
-                seatNumber,
-                "Maria Silva",
-                "12345678909",
-                "maria@example.com",
-                null));
+        var responseBody = await response.Content.ReadAsStringAsync();
+        response.StatusCode.Should().Be(HttpStatusCode.Created, responseBody);
 
-            var responseBody = await response.Content.ReadAsStringAsync();
-            response.StatusCode.Should().Be(HttpStatusCode.Created, responseBody);
-
-            var payload = await response.Content.ReadFromJsonAsync<ReservationDto>(JsonOptions);
-            payload.Should().NotBeNull();
-            response.Headers.Location.Should().NotBeNull();
-            response.Headers.Location!.ToString().Should().EndWith($"/reservas/{payload!.Code}");
-        }
-        finally
-        {
-            if (File.Exists(databasePath))
-            {
-                File.Delete(databasePath);
-            }
-        }
+        var payload = await response.Content.ReadFromJsonAsync<ReservationDto>(JsonOptions);
+        payload.Should().NotBeNull();
+        response.Headers.Location.Should().NotBeNull();
+        response.Headers.Location!.ToString().Should().EndWith($"/reservas/{payload!.Code}");
     }
 
     [Fact]
     public async Task Post_reservas_should_return_bad_request_for_invalid_cpf()
     {
-        var databasePath = Path.Combine(Path.GetTempPath(), $"onibus-express-{Guid.NewGuid():N}.db");
-        var seatNumber = Math.Abs(Guid.NewGuid().GetHashCode());
+        await using var factory = new TestApiFactory();
+        using var client = factory.CreateClient();
 
-        try
-        {
-            await using var factory = new TestApiFactory(databasePath);
-            using var client = factory.CreateClient();
+        var response = await client.PostAsJsonAsync("/reservas", new CreateReservationRequest(
+            Guid.Parse("22222222-2222-2222-2222-222222222222"),
+            7,
+            "Maria Silva",
+            "123",
+            "maria@example.com",
+            null));
 
-            var response = await client.PostAsJsonAsync("/reservas", new CreateReservationRequest(
-                Guid.Parse("22222222-2222-2222-2222-222222222222"),
-                seatNumber,
-                "Maria Silva",
-                "123",
-                "maria@example.com",
-                null));
+        var responseBody = await response.Content.ReadAsStringAsync();
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest, responseBody);
 
-            var responseBody = await response.Content.ReadAsStringAsync();
-            response.StatusCode.Should().Be(HttpStatusCode.BadRequest, responseBody);
-
-            var payload = await response.Content.ReadFromJsonAsync<ApiErrorResponse>();
-            payload.Should().NotBeNull();
-            payload!.Code.Should().Be("invalid_cpf");
-            payload.Message.Should().Be("CPF inválido.");
-        }
-        finally
-        {
-            if (File.Exists(databasePath))
-            {
-                File.Delete(databasePath);
-            }
-        }
+        var payload = await response.Content.ReadFromJsonAsync<ApiErrorResponse>();
+        payload.Should().NotBeNull();
+        payload!.Code.Should().Be("invalid_cpf");
+        payload.Message.Should().Be("CPF inválido.");
     }
 
-    private sealed class TestApiFactory : WebApplicationFactory<Program>
+    [Fact]
+    public async Task Post_reservas_should_isolate_state_between_factories()
     {
-        private readonly string _databasePath;
+        const int seatNumber = 7;
 
-        public TestApiFactory(string databasePath)
-        {
-            _databasePath = databasePath;
-        }
+        await using var firstFactory = new TestApiFactory();
+        using var firstClient = firstFactory.CreateClient();
+
+        var firstResponse = await firstClient.PostAsJsonAsync("/reservas", new CreateReservationRequest(
+            Guid.Parse("22222222-2222-2222-2222-222222222222"),
+            seatNumber,
+            "Maria Silva",
+            "12345678909",
+            "maria@example.com",
+            null));
+
+        var firstBody = await firstResponse.Content.ReadAsStringAsync();
+        firstResponse.StatusCode.Should().Be(HttpStatusCode.Created, firstBody);
+
+        await using var secondFactory = new TestApiFactory();
+        using var secondClient = secondFactory.CreateClient();
+
+        var secondResponse = await secondClient.PostAsJsonAsync("/reservas", new CreateReservationRequest(
+            Guid.Parse("22222222-2222-2222-2222-222222222222"),
+            seatNumber,
+            "Ana Souza",
+            "98765432100",
+            "ana@example.com",
+            null));
+
+        var secondBody = await secondResponse.Content.ReadAsStringAsync();
+        secondResponse.StatusCode.Should().Be(HttpStatusCode.Created, secondBody);
+    }
+
+    private sealed class TestApiFactory : WebApplicationFactory<Program>, IAsyncDisposable
+    {
+        private readonly SqliteConnection _connection = new("Data Source=:memory:");
+
+        public TestApiFactory() => _connection.Open();
 
         protected override void ConfigureWebHost(IWebHostBuilder builder)
         {
             builder.UseEnvironment("Development");
-            builder.ConfigureAppConfiguration((_, config) =>
+            builder.ConfigureServices(services =>
             {
-                config.AddInMemoryCollection(new Dictionary<string, string?>
-                {
-                    ["ConnectionStrings:Default"] = $"Data Source={_databasePath}"
-                });
+                services.RemoveAll<DbContextOptions<OnibusExpressDbContext>>();
+                services.RemoveAll<OnibusExpressDbContext>();
+                services.AddInfrastructure(_connection);
             });
+        }
+
+        public new async ValueTask DisposeAsync()
+        {
+            await _connection.DisposeAsync();
+            await base.DisposeAsync();
         }
     }
 }
