@@ -6,6 +6,7 @@ COPY src/OnibusExpress.Domain/OnibusExpress.Domain.csproj src/OnibusExpress.Doma
 COPY src/OnibusExpress.Application/OnibusExpress.Application.csproj src/OnibusExpress.Application/
 COPY src/OnibusExpress.Infrastructure/OnibusExpress.Infrastructure.csproj src/OnibusExpress.Infrastructure/
 COPY src/OnibusExpress.Api/OnibusExpress.Api.csproj src/OnibusExpress.Api/
+COPY tests/OnibusExpress.Tests/OnibusExpress.Tests.csproj tests/OnibusExpress.Tests/
 
 RUN dotnet restore OnibusExpress.sln
 
