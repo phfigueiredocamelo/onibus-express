@@ -1,5 +1,5 @@
-import { FormEvent, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { FormEvent, useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Alert } from '../components/ui/Alert';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
@@ -20,6 +20,16 @@ export function CheckoutPage() {
   const trip = selection.trip;
   const seatNumber = selection.seatNumber;
   const canContinue = Boolean(trip && seatNumber);
+
+  useEffect(() => {
+    if (!canContinue) {
+      navigate(appRoutes.search, { replace: true });
+    }
+  }, [canContinue, navigate]);
+
+  if (!canContinue) {
+    return null;
+  }
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -68,12 +78,6 @@ export function CheckoutPage() {
         {error ? (
           <Alert variant="error" title="Não foi possível continuar" className="mt-5">
             {error}
-          </Alert>
-        ) : null}
-
-        {!canContinue ? (
-          <Alert variant="warning" title="Seleção ausente" className="mt-5">
-            Escolha um assento primeiro. <Link to={appRoutes.search} className="font-medium underline">Voltar para a busca</Link>
           </Alert>
         ) : null}
 

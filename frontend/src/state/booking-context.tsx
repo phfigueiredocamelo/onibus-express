@@ -1,7 +1,7 @@
 import { createContext, useContext, useMemo, useState, type ReactNode } from 'react';
 import type { TripSummary } from '../types/api';
 
-type BookingSelection = {
+export type BookingSelection = {
   trip: TripSummary | null;
   seatNumber: number | null;
 };
@@ -21,8 +21,13 @@ const emptySelection: BookingSelection = {
   seatNumber: null,
 };
 
-export function BookingProvider({ children }: { children: ReactNode }) {
-  const [selection, setSelectionState] = useState<BookingSelection>(emptySelection);
+type BookingProviderProps = {
+  children: ReactNode;
+  initialSelection?: BookingSelection;
+};
+
+export function BookingProvider({ children, initialSelection = emptySelection }: BookingProviderProps) {
+  const [selection, setSelectionState] = useState<BookingSelection>(initialSelection);
 
   const value = useMemo<BookingContextValue>(
     () => ({
